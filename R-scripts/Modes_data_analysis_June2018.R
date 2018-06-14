@@ -285,6 +285,7 @@ tbl<-ddply(p.data, ~ sample, summarize,
 
 names(tbl)<-c("Sample", "Mean Report Rate", "Number Subjects")
 tbl<-xtable(tbl, caption="Treatment Summaries", label="table:sum")
+print(tbl)
 print(tbl, type = getOption("xtable.type", "latex"), file = "R-Script/Tables/treatsum.tex")
 
 
@@ -329,16 +330,8 @@ ddply(p.data, ~ sample, summarize,
 ############################################################
 
 ##############################
-## Table 2 in the paper
+## Table 3 in the paper
 ##############################
-
-#lab.online.sync$taxrate<-as.factor(lab.online.sync$taxrate)
-#lab.online.sync$treat<-as.factor(lab.online.sync$treat)
-
-#model.1.lab.online.sync <- ols(report.rate.lab.online.sync ~ ncorrectret + taxrate + treat,  x=T, y=T, data=lab.online.sync)
-#fit1<-robcov(model.1.lab.online.sync, cluster=lab.online.sync$muID)
-
-#bootcov(model.1.lab.online.sync,cluster=lab.online.sync$muID)
 
 #### plm versions of the models
 model.1.lab.online.sync <- plm(report.rate.lab.online.sync ~ ncorrectret + factor(taxrate) +factor(treat), data=lab.online.sync, index=c("muID","round"), model= "random")
@@ -353,195 +346,15 @@ model.1.mt.ds.pse<-coeftest(model.1.mt.ds, vcov=vcovHC(model.1.mt.ds, method="ar
 model.1.cp.ds <- plm(report.rate.cess.panel ~ ncorrectret + factor(taxrate) +factor(treat), data=cess.online.panel, index=c("muID","round"), model= "random")
 model.1.cp.ds.pse<-coeftest(model.1.cp.ds, vcov=vcovHC(model.1.cp.ds, method="arellano"))
 
-#### LM vresions of the models
-#model.1.lab.online.sync <- lm(report.rate.lab.online.sync ~ ncorrectret + factor(taxrate) + factor(treat), data=lab.online.sync)
-#model.1.baseline <- lm(report.rate ~ ncorrectret + factor(taxrate) +factor(treat),data=baseline.uk)
-#model.1.mt.ds <- lm(report.rate.mturk.ds ~ ncorrectret + factor(taxrate) +factor(treat), data=mturk.ds)
-#model.1.cp.ds <- lm(report.rate.cess.panel ~ ncorrectret + factor(taxrate) +factor(treat), data=cess.online.panel)
-#model.1.cps.ds <- lm(report.rate.cess.stgo ~ ncorrectret + factor(taxrate) , data=cess.online.stgo)
 
 models <- c( "Lab", "Online Lab", "Online UK",  "Mturk")
 covariates <- c( "\\# of Additions" , "20\\% Tax","30\\% Tax","No Audit","Constant")
+stargazer( model.1.baseline.pse, model.1.lab.online.sync.pse, model.1.cp.ds.pse, model.1.mt.ds.pse)
+
 stargazer( model.1.baseline.pse, model.1.lab.online.sync.pse, model.1.cp.ds.pse, model.1.mt.ds.pse,
           out="R-script/Tables/table.4.4.tex",dep.var.labels = models,covariate.labels = covariates,
           add.lines=list(c("N Obs", nobs(model.1.baseline), nobs(model.1.lab.online.sync), nobs(model.1.cp.ds), nobs(model.1.mt.ds)))
           )
-
-##############################
-## Table 3 in the paper
-##############################
-#model.3.online.sync <- lm(report.rate.lab.online.sync ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=lab.online.sync)
-#model.3.baseline <- lm(report.rate ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=baseline.uk)
-#model.3.mt.ds <- lm(report.rate.mturk.ds~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal  ,data=mturk.ds)
-#model.3.cp.ds <- lm(report.rate.cess.panel ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=cess.online.panel)
-
-
-
-model.3.lab.online.sync <- plm(report.rate.lab.online.sync ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=lab.online.sync, index=c("muID","round"), model= "random")
-model.3.lab.online.sync.pse<-coeftest(model.3.lab.online.sync, vcov=vcovHC(model.3.lab.online.sync, method="arellano"))
-
-model.3.baseline <- plm(report.rate ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=baseline.uk, index=c("muID","round"), model= "random")
-model.3.baseline.pse<-coeftest(model.3.baseline, vcov=vcovHC(model.3.baseline, method="arellano"))
-
-model.3.mt.ds <- plm(report.rate.mturk.ds~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal  ,data=mturk.ds, index=c("muID","round"), model= "random")
-model.3.mt.ds.pse<-coeftest(model.3.mt.ds, vcov=vcovHC(model.3.mt.ds, method="arellano"))
-
-model.3.cp.ds <- plm(report.rate.cess.panel ~ ncorrectret + factor(taxrate) +factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,data=cess.online.panel, index=c("muID","round"), model= "random")
-model.3.cp.ds.pse<-coeftest(model.3.cp.ds, vcov=vcovHC(model.3.cp.ds, method="arellano"))
-
-models <- c( "Lab", "Online Lab", "Online UK", "Online Chile", "Mturk")
-covariates <- c("\\# of Additions" , "20\\% Tax","30\\% Tax","No Audit","Dictator Game Giving","Integrity Score","Risk Preference",
-                "Constant")
-stargazer(model.3.baseline.pse, model.3.lab.online.sync.pse, model.3.cp.ds.pse, model.3.mt.ds.pse,
-          out="R-script/Tables/table.5.4.tex",dep.var.labels = models,covariate.labels = covariates,
-          add.lines=list(c("N Obs", nobs(model.3.baseline), nobs(model.3.lab.online.sync), nobs(model.3.cp.ds), nobs(model.3.mt.ds)))
-)
-
-
-  
-# try CBPS (Imai and Ratkovic 2014)
-# prepar the data for covariate balancing 
-m.mat.online.sync <- model.3.lab.online.sync$model
-m.mat.online.sync$type <- 1
-m.mat.baseline <- model.3.baseline$model
-m.mat.baseline$type <- 2
-m.mat.mt.ds <- model.3.mt.ds$model
-m.mat.mt.ds$type <- 3
-m.mat.cp.ds <- model.3.cp.ds$model
-m.mat.cp.ds$type <- 4
-#m.mat.cps.ds <- model.3.cps.ds$model
-#m.mat.cps.ds$type <- 5
-
-#names(m.mat.lab) <- c("report.rate","ncorrectret","taxrate","treat","DictGive.normal","total.integrity.normal","risk.pref.normal","type")
-nms<-c("report.rate","ncorrectret","taxrate","treat","DictGive.normal","total.integrity.normal","risk.pref.normal", "type")
-
-names(m.mat.online.sync) <- nms
-names(m.mat.baseline) <- nms
-names(m.mat.mt.ds) <- nms
-names(m.mat.cp.ds) <- nms
-#names(m.mat.cps.ds) <- c("report.rate","ncorrectret","taxrate","DictGive.normal","total.integrity.normal","risk.pref.normal", "type")
-#m.mat.cps.ds$treat<-2
-
-
-m.mat <- rbind(m.mat.online.sync, m.mat.baseline, m.mat.mt.ds, m.mat.cp.ds)
-
-# run CBPS
-temp <- CBPS(type ~ ncorrectret + DictGive.normal+risk.pref.normal+factor(taxrate)+factor(treat)+risk.pref.normal ,data=m.mat)
-# check the covariate balance after CBPS
-#pdf("../../figs/covariate_balance.pdf",width=6,height=6)
-plot(temp)
-#dev.off()
-summary(temp)
-
-##############################
-## Table 4 in the paper
-##############################
-m.mat$taxrate <- factor(m.mat$taxrate, levels = c("10", "20", "30"))
-
-model.3.cbps.online.sync <- lm(report.rate ~ ncorrectret + factor(taxrate)+factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal ,
-                                  data=m.mat[m.mat$type==1,],weights=temp$weights[m.mat$type==1])
-model.3.cbps.baseline <- lm(report.rate ~ ncorrectret + factor(taxrate)+factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal ,
-                               data=m.mat[m.mat$type==2,],weights=temp$weights[m.mat$type==2])
-model.3.cbps.mt.ds <- lm(report.rate ~ ncorrectret + factor(taxrate)+factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal,
-                            data=m.mat[m.mat$type==3,],weights=temp$weights[m.mat$type==3])
-model.3.cbps.cp.ds <- lm(report.rate ~ ncorrectret + factor(taxrate)+factor(treat)+DictGive.normal+total.integrity.normal+risk.pref.normal ,
-                         data=m.mat[m.mat$type==4,],weights=temp$weights[m.mat$type==4])
-
-covariates <- c("\\# of Additions" , "20\\% Tax","30\\% Tax","No Audit","Dictator Game Giving","Integrity Score","Risk Preference"
-                 ,"Constant")
-stargazer(model.3.cbps.baseline,model.3.cbps.online.sync, model.3.cbps.cp.ds, model.3.cbps.mt.ds,
-          out="R-script/Tables/table.6.4.tex",dep.var.labels = models,covariate.labels = covariates,
-          keep.stat = c("n","adj.rsq"))
-
-#######################
-### Table 5 in paper
-########################
-
-# p.data$lab<-"Other"
-# p.data$lab[ p.data$sample %in% c("Lab")]<-"Lab"
-# p.data$lab <- factor(p.data$lab, levels = c("Lab", "Other"))
-# p.data$student<-ifelse( p.data$sample %in% c("Lab", "Online Lab"), "Student", "Population")
-
-p.data$sample <- factor(p.data$sample, levels = c("Lab", "Online Lab", "CESS Online UK", "Mturk" ))
-
-model.4.audit <- plm(report.rate ~ ncorrectret + sample + DictGive.normal+total.integrity.normal+risk.pref.normal  + Age + Gender,data=p.data[p.data$treat==1,], index=c("muID","round"), model= "random")
-model.4.audit.pse<-coeftest(model.4.audit, vcov=vcovHC(model.4.audit, method="arellano"))
-
-model.4.no.audit <- plm(report.rate ~ ncorrectret + sample + DictGive.normal+total.integrity.normal+risk.pref.normal + Age + Gender,data=p.data[p.data$treat==2,], index=c("muID","round"), model= "random")
-model.4.no.audit.pse<-coeftest(model.4.no.audit, vcov=vcovHC(model.4.no.audit, method="arellano"))
-
-
-
-models<-c("Audit", "No Audit")
-covariates <- c("\\# of Additions" ,"Online Lab", "CESS Online UK", "Mturk", "Dictator Game Giving",
-                "Integrity Score","Risk Preference", "Age", "Male", "Constant")
-stargazer(model.4.audit.pse, model.4.no.audit.pse,
-          out="R-script/Tables/table.7.4.tex", 
-          dep.var.labels = models, covariate.labels = covariates,
-          add.lines=list(c("N Obs", nobs(model.4.audit), nobs(model.4.no.audit)))
-)
-
-
-
-###########################
-### Mlogit models
-############################
-
-
-
-
-##############################
-## Table 2 in the paper
-##############################
-
-library(mlogit)
-
-
-
-cdata <- ddply(p.data[p.data$treat==1,], c("muID", "sample", "taxrate", "treat" ), summarise,
-               mean.report.rate = mean(report.rate, na.rm=T),
-               mean.ncorrectret = mean(ncorrectret, na.rm=T),
-               cheat_pattern = if (mean.report.rate=="0") "Always declare 0%" 
-               else if (mean.report.rate=="1") "Always declare 100%" 
-               else if ("1" %in% report.rate) "Sometimes Cheat" else "Always Cheat"
-               )
-
-
-cdata2 <- ddply(p.data[p.data$treat==2,], c("muID", "sample", "taxrate", "treat" ), summarise,
-               mean.report.rate = mean(report.rate, na.rm=T),
-               mean.ncorrectret = mean(ncorrectret, na.rm=T),
-               cheat_pattern = if (mean.report.rate=="0") "Always declare 0%" 
-               else if (mean.report.rate=="1") "Always declare 100%" 
-               else if ("1" %in% report.rate) "Sometimes Cheat" else "Always Cheat"
-)
-
-cdata<-rbind(cdata, cdata2)
-
-cdata$cheat_pattern<- factor(cdata$cheat_pattern, levels = c("Always declare 100%", "Always declare 0%", "Always Cheat", "Sometimes Cheat"))
-cdata$sample<- factor(cdata$sample, levels = c("Lab", "Online Lab", "CESS Online UK",  "Mturk"  ))
-
-
-test <- multinom(cheat_pattern ~ sample +mean.ncorrectret +  factor(treat) + factor(taxrate), data = cdata)
-summary(test)
-
-covariates<-c("Online Lab", "CESS Online UK", "Mturk", "\\# of Additions" , "No Audit",  "20\\% Tax","30\\% Tax", "Constant")
-
-
-stargazer(test, covariate.labels = covariates,
-          out="R-script/Tables/table.mlogit.tex")
-
-
-models <- c( "Lab", "Online Lab", "Online UK",  "Mturk")
-covariates <- c( "\\# of Additions" , "20\\% Tax","30\\% Tax","No Audit","Constant")
-stargazer( model.1.baseline.pse, model.1.lab.online.sync.pse, model.1.cp.ds.pse, model.1.mt.ds.pse,
-           out="R-script/Tables/table.4.4.tex",dep.var.labels = models,covariate.labels = covariates,
-           add.lines=list(c("N Obs", nobs(model.1.baseline), nobs(model.1.lab.online.sync), nobs(model.1.cp.ds), nobs(model.1.mt.ds)))
-)
-
-
-
-
-
 
 
 ####
