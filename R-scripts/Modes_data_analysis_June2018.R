@@ -281,12 +281,15 @@ prop.table(table(cess.online.panel$Consistent ))
 tbl<-ddply(p.data, ~ sample, summarize, 
       m.report = mean(report.rate, na.rm=T),
       subj.n = length(unique(muID))
-)
+      )
 
 names(tbl)<-c("Sample", "Mean Report Rate", "Number Subjects")
 tbl<-xtable(tbl, caption="Treatment Summaries", label="table:sum")
 print(tbl)
 print(tbl, type = getOption("xtable.type", "latex"), file = "R-Script/Tables/treatsum.tex")
+
+table(baseline.uk$session)
+length(unique(baseline.uk$session))
 
 
 ##############################
