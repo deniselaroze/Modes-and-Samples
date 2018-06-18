@@ -1,4 +1,5 @@
 # author: Denise Laroze Feb 2017 (deniselaroze@gmail.com)
+# amended: Tom Robinson Jun 2018 (thomas.robinson@politics.ox.ac.uk)
 
 
 rm(list=ls())
@@ -17,6 +18,9 @@ library(plyr)
 library(plm)
 library(lmtest)
 library(xtable)
+library(FindIt)
+library(BayesTree)
+library(ggpubr)
 
 
 ##--------#---------#---------#---------#---------#---------#---------#---------
@@ -24,7 +28,7 @@ library(xtable)
 ##--------#---------#---------#---------#---------#---------#---------#---------
 rm(list=ls())
 #setwd("C:/Users/Denise Laroze Prehn/Dropbox/CESS-Santiago/Archive/Modes/Tax Cheating Qualtrics Online Experiment")
-setwd("C:/Users/Denise Laroze P/Dropbox/CESS-Santiago/Archive/Modes/Tax Cheating Qualtrics Online Experiment")
+#setwd("C:/Users/Denise Laroze P/Dropbox/CESS-Santiago/Archive/Modes/Tax Cheating Qualtrics Online Experiment")
 
 mturk.ds<-read.csv("data/Mturk_DS_Sept2017.csv") #
 
@@ -359,6 +363,160 @@ stargazer( model.1.baseline.pse, model.1.lab.online.sync.pse, model.1.cp.ds.pse,
           add.lines=list(c("N Obs", nobs(model.1.baseline), nobs(model.1.lab.online.sync), nobs(model.1.cp.ds), nobs(model.1.mt.ds)))
           )
 
+##############################
+## Table 4 in the paper
+##############################
+set.seed(89)
+df <- p.data
+
+# Assign treatment value to subjects based on RET performance
+df$treat.het <- ifelse(is.na(df$ncorrectret),NA,ifelse(df$ncorrectret > mean(df$ncorrectret, na.rm=T),1,0))
+
+# Add online and student dummy variables
+df$online <- ifelse(df$sample == "Online Lab" | df$sample == "Cess Online UK" | df$sample == "Mturk",1,0)
+df$student <- ifelse(df$sample == "Online Lab" | df$sample == "Lab",1,0)
+
+# Recode gender 
+df$Gender <- ifelse(df$Gender == "F",1,0)
+
+##################################################################################################
+## Basic model with no additional covariates as controls                                        ##
+##################################################################################################
+
+## Not run:
+# Run to find LASSO parameters (see FindIt help for more info.) 
+# F1 <- FindIt(model.treat = report.rate ~ treat.het,
+#              model.main = ~ student + online,
+#              model.int = ~ student + online,
+#              data = df,
+#              type = "continuous",
+#              treat.type = "single")
+
+# # Use LASSO parameters from above to find best heterogeneous effects model
+# F1 <- FindIt(model.treat = report.rate ~ treat.het,
+#              model.main = ~ student + online,
+#              model.int = ~ student + online,
+#              data = df,
+#              type = "continuous",
+#              treat.type = "single",
+#              search.lambdas = FALSE,
+#              lambdas = c(-10.250,-10.245))
+# 
+# summary(F1)
+# pred1 <- predict(F1)
+# plot(pred1)
+# 
+# # Generate distinct predicted treatment effects matrix
+# te <- distinct(pred1$data, Treatment.effect, treatment, student, online)
+# te[te$treatment == 1,]
+
+##################################################################################################
+## Model with additional covariates as controls                                                 ##
+##################################################################################################
+
+## Not run
+# Run to get LASSO parameters
+# F2 <- FindIt(model.treat = report.rate ~ treat.het,
+#              model.main = ~ student + online + Age + Gender,
+#              model.int = ~ student + online,
+#              data = df,
+#              type = "continuous",
+#              treat.type = "single")
+# 
+# 
+# F2 <- FindIt(model.treat = report.rate ~ treat.het,
+#              model.main = ~ student + online + Age + Gender,
+#              model.int = ~ student + online,
+#              data = df,
+#              type = "continuous",
+#              treat.type = "single",
+#              search.lambdas = FALSE,
+#              lambdas = c(-8.624,-8.619))
+# summary(F2)
+# 
+# pred2  <-  predict(F2)
+# plot(pred2)
+# 
+# te2 <- distinct(pred2$data, Treatment.effect, treatment, student, online)
+# unique(te2[te2$treatment == 1,])
+
+##################################################################################################
+## Model with Age (continuous) and Gender (binary) treatment interactions included              ##
+##################################################################################################
+
+## Not run:
+# Run to get LASSO parameters
+# F3 <- FindIt(model.treat = report.rate ~ treat.het,
+#              model.main = ~ student + online + Age + Gender,
+#              model.int = ~ student + online + Age + Gender,
+#              data = df,
+#              type = "continuous",
+#              treat.type = "single")
+
+
+F3 <- FindIt(model.treat = report.rate ~ treat.het,
+             model.main = ~ student + online + Age + Gender,
+             model.int = ~ student + online + Age + Gender,
+             data = df,
+             type = "continuous",
+             treat.type = "single",
+             search.lambdas = FALSE,
+             lambdas = c(-7.0025,-6.9975))
+summary(F3)
+
+pred3  <-  predict(F3)
+
+te3 <- distinct(pred3$data, Treatment.effect, treatment, student, online, Age, Gender)
+unique(te3[te3$treatment == 1,])
+
+
+
+##################################################################################################
+##                                                                                              ##
+## 2. Bayesian Additive Regression Trees (BART) Estimation                                      ##
+##    Hugh A. Chipman, Edward I. George and Robert E. McCulloch (2010)                          ##
+##                                                                                              ##
+##################################################################################################
+set.seed(89)
+
+# Refresh data
+df <- p.data
+df$treat.het <- ifelse(is.na(df$ncorrectret),NA,ifelse(df$ncorrectret > mean(df$ncorrectret, na.rm=T),1,0))
+# Add online and student dummy variables
+df$online <- ifelse(df$sample == "Online Lab" | df$sample == "Cess Online UK" | df$sample == "Mturk",1,0)
+df$student <- ifelse(df$sample == "Online Lab" | df$sample == "Lab",1,0)
+df$Gender <- ifelse(df$Gender == "F",1,0)
+
+# Define variabels incl. outcome as column 1
+vars <- c("report.rate","treat.het","student","online","Age","Gender")
+
+df <- df[,vars]
+df <- df[complete.cases(df),]
+
+y <- df$report.rate
+train <- df[,-1]
+
+# Gen. test data where those treated become untreated, for use in calculating ITT
+test <- train[train$treat.het == 1,]
+test$treat.het <- 0
+
+# Run BART for ITT estimate
+bart.out <- bart(x.train = train, y.train = y, x.test = test)
+
+# Basic ITT
+ITT <- bart.out$yhat.train.mean[train$treat.het == 1] - bart.out$yhat.test.mean
+ITT_df <- data.frame(ITT = ITT)
+ITT_df <- cbind(ITT_df,train[train$treat.het == 1,c(2:5)])
+ITT_df <- ITT_df[order(ITT_df$ITT),]
+ITT_df$id <- c(1:length(ITT))
+
+
+
+
+
+
+
+
 
 ####
 ###############################################################
@@ -650,10 +808,124 @@ ggplot(plot.data, aes(x = Sample, y = Freq, fill = cheat_type)) + geom_bar(stat 
 ggsave(paste0("comparative_4types_cheaters", v, ".pdf"), path=fig.path,  width = 10, height = 6)
 
 
+#################################### 
+### FindIT plot
+####################################
+
+## Stacked density plot
+library(ggplot2)
+library(ggpubr)
+
+# Duplicate dataframe and order treatment effects
+hist <- pred3$data
+hist <- hist[order(hist$Treatment.effect),]
+hist$i <- c(1:nrow(hist))
+
+# Convert covariates to binary factors
+hist$Gender <- as.factor(ifelse(hist$Gender == 1, "Female","Male"))
+hist$online <- as.factor(ifelse(hist$online == 1,"Online","Lab"))
+hist$student <- as.factor(ifelse(hist$student == 1,"Student","Non-student"))
+
+# Recreate Kosuke heterogeneity plot
+effectsPlot <- ggplot(hist, aes(x = i, y = Treatment.effect)) +
+  geom_line() +
+  geom_hline(yintercept= 0, linetype="dashed", color="red") +
+  geom_hline(yintercept = pred3$ATE, color = "blue") +
+  labs(y = "Treatment Effect") +
+  theme_minimal()
+
+## Create histogram plots
+# Banded age brackets for stacked histogram
+hist$AgeF <- ifelse(hist$Age < 30,"< 30",ifelse(hist$Age <50,"30-49",ifelse(hist$Age<70,"50-69","70+")))
+hist$AgeF <- factor(hist$AgeF, levels = c("70+","50-69","30-49","< 30"))
+
+agePlot <- ggplot(hist, aes(x=i, fill = AgeF)) +
+  geom_histogram(binwidth = 400, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Age") +
+  labs(y = "Count")
+
+genderPlot <- ggplot(hist, aes(x=i, fill=Gender)) +
+  geom_histogram(binwidth = 400, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Gender") +
+  labs(y = "Count")
+
+studentPlot <- ggplot(hist, aes(x=i, fill=student)) +
+  geom_histogram(binwidth = 400, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Student") +
+  labs(y = "Count")
+
+onlinePlot <- ggplot(hist, aes(x=i, fill=online)) +
+  geom_histogram(binwidth = 400, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Online") +
+  labs(y = "Count")
+
+## Combine all plots into one chart5
+figure <- ggarrange(effectsPlot, agePlot, genderPlot, studentPlot, onlinePlot,
+                    ncol = 1, nrow = 5, heights = c(2,1.3,1.3,1.3,1.3))
+plot(figure)
+
+ggsave(figure, filename = "CombinedPlot.png", device = "png", height = 8, width = 6)
 
 
+#################################### 
+### BART plot
+####################################
 
+# Duplicate dataframe and order treatment effects
+hist <- ITT_df
 
+# Convert covariates to binary factors
+hist$Gender <- as.factor(ifelse(hist$Gender == 1, "Female","Male"))
+hist$online <- as.factor(ifelse(hist$online == 1,"Online","Lab"))
+hist$student <- as.factor(ifelse(hist$student == 1,"Student","Non-student"))
 
+# ITT Heterogeneity plot
+effectsPlot <- ggplot(hist, aes(x=id, y = ITT)) +
+  geom_line() +
+  geom_hline(yintercept= 0, linetype="dashed", color="red") +
+  geom_hline(yintercept = mean(hist$ITT), color = "blue") +
+  labs(x="Individual",y = "CATE") +
+  theme_minimal()
 
+## Create histogram plots
+# Banded age brackets for stacked histogram
+hist$AgeF <- ifelse(hist$Age < 30,"< 30",ifelse(hist$Age <50,"30-49",ifelse(hist$Age<70,"50-69","70+")))
+hist$AgeF <- factor(hist$AgeF, levels = c("70+","50-69","30-49","< 30"))
+
+agePlot <- ggplot(hist, aes(x=id, fill = AgeF)) +
+  geom_histogram(binwidth = 300, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Age") +
+  labs(y = "Count")
+
+genderPlot <- ggplot(hist, aes(x=id, fill=Gender)) +
+  geom_histogram(binwidth = 300, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Gender") +
+  labs(y = "Count")
+
+studentPlot <- ggplot(hist, aes(x=id, fill=student)) +
+  geom_histogram(binwidth = 300, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Student") +
+  labs(y = "Count")
+
+onlinePlot <- ggplot(hist, aes(x=id, fill=online)) +
+  geom_histogram(binwidth = 300, position="stack") +
+  theme(legend.position="bottom") +
+  scale_fill_discrete(name="Online") +
+  labs(y = "Count")
+
+# Combine all plots into one chart
+figure <- ggarrange(effectsPlot, agePlot, genderPlot, studentPlot, onlinePlot,
+                    ncol = 1, nrow = 5, heights = c(2,1.3,1.3,1.3,1.3))
+
+ggsave(figure, filename = "CombinedPlot_BART.png", device = "png", height = 8, width = 6)
+
+## Not run:
+plot(figure)
 
