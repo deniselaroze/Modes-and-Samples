@@ -1,3 +1,6 @@
+
+### This repository is a previous version of the manuscript "Multi-Modes for Detecting Experimental Measurement Error" submitted for review late 2018 early 2019. The updated replication repository is available in https://github.com/rayduch/Experimental-Modes-and-Heterogeneity
+
 # Modes-and-Samples
 Replication material for the manuscript "Comparing Modes and Samples in Experiments"
 
